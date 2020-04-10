@@ -6,8 +6,10 @@ from scipy import signal
 import copy
 import torch
 import matplotlib
+
 matplotlib.use('pdf')
 import matplotlib.pyplot as plt
+
 
 def load_spectrogram(fpath):
     wav, sr = librosa.load(fpath, sr=args.sr)
@@ -43,6 +45,7 @@ def load_spectrogram(fpath):
     mel, mag = padding_reduction(mel, mag)
     return mel, mag
 
+
 def padding_reduction(mel, mag):
     # Padding
     t = mel.shape[0]
@@ -51,6 +54,7 @@ def padding_reduction(mel, mag):
     mag = np.pad(mag, [[0, n_paddings], [0, 0]], mode="constant")
     mel = mel[::args.r, :]
     return mel, mag
+
 
 def spectrogram2wav(mag):
     '''# Generate wave file from spectrogram'''
@@ -64,7 +68,7 @@ def spectrogram2wav(mag):
     mag = np.power(10.0, mag * 0.05)
 
     # wav reconstruction
-    wav = griffin_lim(mag**args.power)
+    wav = griffin_lim(mag ** args.power)
 
     # de-preemphasis
     wav = signal.lfilter([1], [1, -args.preemph], wav)
@@ -73,6 +77,7 @@ def spectrogram2wav(mag):
     wav, _ = librosa.effects.trim(wav)
 
     return wav.astype(np.float32)
+
 
 def griffin_lim(spectrogram):
     '''
@@ -88,6 +93,7 @@ def griffin_lim(spectrogram):
     y = np.real(X_t)
     return y
 
+
 def att2img(A):
     '''
     Args:
@@ -96,7 +102,7 @@ def att2img(A):
     for i in range(A.shape[-1]):
         att = A[0, :, i]
         local_min, local_max = att.min(), att.max()
-        A[0, :, i] = (att-local_min)/local_max
+        A[0, :, i] = (att - local_min) / local_max
     return A
 
 
@@ -121,12 +127,13 @@ def plot_att(A, text, global_step, path='.', name=None):
             path, 'A-{}.png'.format(global_step)), format='png')
     plt.close(fig)
 
+
 def prepro_guided_attention(N, T, g=0.2):
     W = np.zeros([args.max_Tx, args.max_Ty], dtype=np.float32)
     for tx in range(args.max_Tx):
         for ty in range(args.max_Ty):
             if ty <= T:
-                W[tx, ty] = 1.0 - np.exp(-0.5 * (ty/T - tx/N)**2 / g**2)
+                W[tx, ty] = 1.0 - np.exp(-0.5 * (ty / T - tx / N) ** 2 / g ** 2)
             else:
-                W[tx, ty] = 1.0 - np.exp(-0.5 * ((N-1)/N - tx/N)**2 / (g/2)**2) # forcing more at end step
+                W[tx, ty] = 1.0 - np.exp(-0.5 * ((N - 1) / N - tx / N) ** 2 / (g / 2) ** 2)  # forcing more at end step
     return W

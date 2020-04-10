@@ -8,6 +8,7 @@ import utils
 import codecs, unicodedata
 from config import ConfigArgs as args
 
+
 class SpeechDataset(Dataset):
     def __init__(self, data_path, metadata, model_name, mem_mode=False, ga_mode=False):
         '''
@@ -27,7 +28,7 @@ class SpeechDataset(Dataset):
         if self.ga_mode:
             self.g_att = [torch.tensor(np.load(os.path.join(
                 self.data_path, args.ga_dir, path))) for path in self.fpaths]
-        
+
     def __getitem__(self, idx):
         text, mel, mag = None, None, None
         text = torch.tensor(self.norms[idx], dtype=torch.long)
@@ -52,10 +53,12 @@ class SpeechDataset(Dataset):
     def __len__(self):
         return len(self.fpaths)
 
+
 def load_vocab():
     char2idx = {char: idx for idx, char in enumerate(args.vocab)}
     idx2char = {idx: char for idx, char in enumerate(args.vocab)}
     return char2idx, idx2char
+
 
 def text_normalize(text):
     text = ''.join(char for char in unicodedata.normalize('NFD', text)
@@ -65,14 +68,15 @@ def text_normalize(text):
     text = re.sub("[ ]+", " ", text)
     return text
 
+
 def read_meta(path):
-    '''
+    """
     If we use pandas instead of this function, it may not cover quotes.
     Args:
         path: metadata path
     Returns:
         fpaths, texts, norms
-    '''
+    """
     char2idx, _ = load_vocab()
     lines = codecs.open(path, 'r', 'utf-8').readlines()
     fpaths, texts, norms = [], [], []
@@ -87,6 +91,7 @@ def read_meta(path):
         texts.append(text)
         norms.append(norm)
     return fpaths, texts, norms
+
 
 def collate_fn(data):
     """
@@ -122,6 +127,7 @@ def collate_fn(data):
         mag_pads[idx, :mag_end] = mags[idx]
     return text_pads, mel_pads, mag_pads
 
+
 def t2m_collate_fn(data):
     """
     Creates mini-batch tensors from the list of tuples (texts, mels, mags).
@@ -149,6 +155,7 @@ def t2m_collate_fn(data):
         mel_end = mel_lengths[idx]
         mel_pads[idx, :mel_end] = mels[idx]
     return text_pads, mel_pads, None
+
 
 def t2m_ga_collate_fn(data):
     """
@@ -180,6 +187,7 @@ def t2m_ga_collate_fn(data):
         mel_pads[idx, :mel_end] = mels[idx]
         ga_pads[idx] = gas[idx][:max(text_lengths), :max(mel_lengths)]
     return text_pads, mel_pads, ga_pads
+
 
 class TextDataset(Dataset):
     def __init__(self, text_path):
@@ -213,6 +221,7 @@ def read_text(path):
         text = [char2idx[char] for char in text]
         texts.append(text)
     return texts
+
 
 def synth_collate_fn(data):
     """

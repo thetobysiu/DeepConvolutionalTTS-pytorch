@@ -64,7 +64,8 @@ def main():
     ckpt = pd.read_csv(os.path.join(args.logdir, t2m.name, 'ckpt.csv'), sep=',', header=None)
     ckpt.columns = ['models', 'loss']
     ckpt = ckpt.sort_values(by='loss', ascending=True)
-    state = torch.load(os.path.join(args.logdir, t2m.name, ckpt.models.loc[0]))
+    state = torch.load(os.path.join(args.logdir, t2m.name, 'model-56k.pth.tar'))
+    # state = torch.load(os.path.join(args.logdir, t2m.name, ckpt.models.loc[0]))
     t2m.load_state_dict(state['model'])
     args.global_step = state['global_step']
 
@@ -73,7 +74,6 @@ def main():
     ckpt = ckpt.sort_values(by='loss', ascending=True)
     state = torch.load(os.path.join(args.logdir, ssrn.name, ckpt.models.loc[0]))
     ssrn.load_state_dict(state['model'])
-
     print('All of models are loaded.')
 
     t2m.eval()

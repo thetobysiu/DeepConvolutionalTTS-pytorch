@@ -18,17 +18,19 @@ from model import Text2Mel, SSRN
 from data import SpeechDataset, collate_fn, t2m_collate_fn, t2m_ga_collate_fn, load_vocab
 from utils import att2img, spectrogram2wav, plot_att
 
+
 def train(model, data_loader, valid_loader, optimizer, scheduler, batch_size=32, ckpt_dir=None, writer=None, mode='1'):
     epochs = 0
     global_step = args.global_step
-    l1_criterion = nn.L1Loss().to(DEVICE) # default average
+    l1_criterion = nn.L1Loss().to(DEVICE)  # default average
     bd_criterion = nn.BCELoss().to(DEVICE)
-    model_infos = [('None', 10000.)]*5
-    first_frames = torch.zeros([batch_size, 1, args.n_mels]).to(DEVICE) # (N, Ty/r, n_mels)
+    model_infos = [('None', 10000.)] * 5
+    first_frames = torch.zeros([batch_size, 1, args.n_mels]).to(DEVICE)  # (N, Ty/r, n_mels)
     idx2char = load_vocab()[-1]
     while global_step < args.max_step:
         epoch_loss = 0
-        for step, (texts, mels, extras) in tqdm(enumerate(data_loader), total=len(data_loader), unit='B', ncols=70, leave=False):
+        for step, (texts, mels, extras) in tqdm(enumerate(data_loader), total=len(data_loader), unit='B', ncols=70,
+                                                leave=False):
             optimizer.zero_grad()
             if model.name == 'Text2Mel':
                 if args.ga_mode:
@@ -40,7 +42,7 @@ def train(model, data_loader, valid_loader, optimizer, scheduler, batch_size=32,
                 if args.ga_mode:
                     l1_loss = l1_criterion(mels_hat, mels)
                     bd_loss = bd_criterion(mels_hat, mels)
-                    att_loss = torch.mean(A*gas)
+                    att_loss = torch.mean(A * gas)
                     loss = l1_loss + bd_loss + att_loss
                 else:
                     l1_loss = l1_criterion(mels_hat, mels)
@@ -61,7 +63,8 @@ def train(model, data_loader, valid_loader, optimizer, scheduler, batch_size=32,
             if global_step % args.save_term == 0:
                 model.eval()
                 val_loss = evaluate(model, valid_loader, l1_criterion, writer, global_step, args.test_batch)
-                model_infos = save_model(model, model_infos, optimizer, scheduler, val_loss, global_step, ckpt_dir) # save best 5 models
+                model_infos = save_model(model, model_infos, optimizer, scheduler, val_loss, global_step,
+                                         ckpt_dir)  # save best 5 models
                 model.train()
         if args.log_mode:
             # Summary
@@ -70,13 +73,13 @@ def train(model, data_loader, valid_loader, optimizer, scheduler, batch_size=32,
             writer.add_scalar('train/lr', scheduler.get_lr()[0], global_step)
             if model.name == 'Text2Mel':
                 alignment = A[0:1].clone().cpu().detach().numpy()
-                writer.add_image('train/alignments', att2img(alignment), global_step) # (Tx, Ty)
+                writer.add_image('train/alignments', att2img(alignment), global_step)  # (Tx, Ty)
                 if args.ga_mode:
                     writer.add_scalar('train/loss_att', att_loss, global_step)
                 text = texts[0].cpu().detach().numpy()
                 text = [idx2char[ch] for ch in text]
                 plot_att(alignment[0], text, global_step, path=os.path.join(args.logdir, model.name, 'A', 'train'))
-                mel_hat = mels_hat[0:1].transpose(1,2)
+                mel_hat = mels_hat[0:1].transpose(1, 2)
                 mel = mels[0:1].transpose(1, 2)
                 writer.add_image('train/mel_hat', mel_hat, global_step)
                 writer.add_image('train/mel', mel, global_step)
@@ -89,13 +92,14 @@ def train(model, data_loader, valid_loader, optimizer, scheduler, batch_size=32,
         epochs += 1
     print('Training complete')
 
+
 def evaluate(model, data_loader, criterion, writer, global_step, batch_size=100):
     valid_loss = 0.
-    A = None 
+    A = None
     with torch.no_grad():
         for step, (texts, mels, extras) in enumerate(data_loader):
             if model.name == 'Text2Mel':
-                first_frames = torch.zeros([mels.shape[0], 1, args.n_mels]).to(DEVICE) # (N, Ty/r, n_mels)
+                first_frames = torch.zeros([mels.shape[0], 1, args.n_mels]).to(DEVICE)  # (N, Ty/r, n_mels)
                 texts, mels = texts.to(DEVICE), mels.to(DEVICE)
                 prev_mels = torch.cat((first_frames, mels[:, :-1, :]), 1)
                 mels_hat, A = model(texts, prev_mels)  # mels_hat: (N, Ty/r, n_mels), A: (N, Tx, Ty/r)
@@ -109,11 +113,11 @@ def evaluate(model, data_loader, criterion, writer, global_step, batch_size=100)
         writer.add_scalar('eval/loss', avg_loss, global_step)
         if model.name == 'Text2Mel':
             alignment = A[0:1].clone().cpu().detach().numpy()
-            writer.add_image('eval/alignments', att2img(alignment), global_step) # (Tx, Ty)
+            writer.add_image('eval/alignments', att2img(alignment), global_step)  # (Tx, Ty)
             text = texts[0].cpu().detach().numpy()
             text = [load_vocab()[-1][ch] for ch in text]
             plot_att(alignment[0], text, global_step, path=os.path.join(args.logdir, model.name, 'A'))
-            mel_hat = mels_hat[0:1].transpose(1,2)
+            mel_hat = mels_hat[0:1].transpose(1, 2)
             mel = mels[0:1].transpose(1, 2)
             writer.add_image('eval/mel_hat', mel_hat, global_step)
             writer.add_image('eval/mel', mel, global_step)
@@ -124,9 +128,10 @@ def evaluate(model, data_loader, criterion, writer, global_step, batch_size=100)
             writer.add_image('eval/mag', mag, global_step)
     return avg_loss
 
+
 def save_model(model, model_infos, optimizer, scheduler, val_loss, global_step, ckpt_dir):
-    cur_ckpt = 'model-{}k.pth.tar'.format(global_step//1000)
-    prev_ckpt = 'model-{}k.pth.tar'.format(global_step//1000-(args.save_term//1000))
+    cur_ckpt = 'model-{}k.pth.tar'.format(global_step // 1000)
+    prev_ckpt = 'model-{}k.pth.tar'.format(global_step // 1000 - (args.save_term // 1000))
     state = {
         'global_step': global_step,
         'name': model.name,
@@ -138,15 +143,16 @@ def save_model(model, model_infos, optimizer, scheduler, val_loss, global_step, 
     torch.save(state, os.path.join(ckpt_dir, cur_ckpt))
     if prev_ckpt not in dict(model_infos).keys() and os.path.exists(os.path.join(ckpt_dir, prev_ckpt)):
         os.remove(os.path.join(ckpt_dir, prev_ckpt))
-    if val_loss < model_infos[-1][1]: # save better models
+    if val_loss < model_infos[-1][1]:  # save better models
         worst_model = os.path.join(ckpt_dir, model_infos[-1][0])
         if os.path.exists(worst_model):
             os.remove(worst_model)
         model_infos[-1] = (cur_ckpt, float('{:.5f}'.format(val_loss)))
         model_infos = sorted(list(model_infos), key=lambda x: x[1])
-        pd.DataFrame(model_infos).to_csv(os.path.join(ckpt_dir, 'ckpt.csv'), 
-                                            sep=',', header=None, index=None)
+        pd.DataFrame(model_infos).to_csv(os.path.join(ckpt_dir, 'ckpt.csv'),
+                                         sep=',', header=None, index=None)
     return model_infos
+
 
 def main(network=1):
     if network == 1:
@@ -157,7 +163,7 @@ def main(network=1):
     print('{} threads are used...'.format(torch.get_num_threads()))
     ckpt_dir = os.path.join(args.logdir, model.name)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    scheduler = StepLR(optimizer, step_size=args.lr_decay_step//10, gamma=0.933) # around 1/2 per decay step
+    scheduler = StepLR(optimizer, step_size=args.lr_decay_step // 10, gamma=0.933)  # around 1/2 per decay step
 
     if not os.path.exists(ckpt_dir):
         os.makedirs(os.path.join(ckpt_dir, 'A', 'train'))
@@ -188,11 +194,12 @@ def main(network=1):
                              drop_last=True, pin_memory=True)
     valid_loader = DataLoader(dataset=validset, batch_size=args.test_batch,
                               shuffle=False, collate_fn=cfn_eval, pin_memory=True)
-    
+
     writer = SummaryWriter(ckpt_dir)
     train(model, data_loader, valid_loader, optimizer, scheduler,
           batch_size=args.batch_size, ckpt_dir=ckpt_dir, writer=writer)
     return None
+
 
 if __name__ == '__main__':
     network = int(sys.argv[1])
@@ -206,4 +213,3 @@ if __name__ == '__main__':
     np.random.seed(seed)
     torch.manual_seed(seed)
     main(network=network)
-    

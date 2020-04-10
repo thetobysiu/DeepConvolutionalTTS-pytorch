@@ -11,13 +11,16 @@ import data
 
 NUM_JOBS = 8
 
+
 def f(f_args):
     fpath, text = f_args
-    mel, mag = load_spectrogram(os.path.join(args.data_path, 'wavs', fpath.replace('npy', 'wav')))
+    mel = np.load(os.path.join(args.data_path, args.mel_dir, fpath))
+    # mel, mag = load_spectrogram(os.path.join(args.data_path, 'wavs', fpath.replace('npy', 'wav')))
     np.save(os.path.join(args.data_path, args.ga_dir, fpath), prepro_guided_attention(len(text), len(mel), g=args.g))
-    np.save(os.path.join(args.data_path, args.mel_dir, fpath), mel)
-    np.save(os.path.join(args.data_path, args.mag_dir, fpath), mag)
+    # np.save(os.path.join(args.data_path, args.mel_dir, fpath), mel)
+    # np.save(os.path.join(args.data_path, args.mag_dir, fpath), mag)
     return None
+
 
 def prepro_signal():
     print('Preprocessing signal')
@@ -37,8 +40,9 @@ def prepro_signal():
 
     total_files = len(fpaths)
     with tqdm(total=total_files) as pbar:
-        for _ in tqdm(p.imap_unordered(f, list(zip(fpaths,texts)))):
+        for _ in tqdm(p.imap_unordered(f, list(zip(fpaths, texts)))):
             pbar.update()
+
 
 def prepro_meta():
     ## train(95%)/test(5%) split for metadata
@@ -59,8 +63,9 @@ def prepro_meta():
             test_f.write(line)
         else:
             train_f.write(line)
-    print('# of train set: {}, # of test set: {}'.format(1+idx-len(test_idx), len(test_idx)))
+    print('# of train set: {}, # of test set: {}'.format(1 + idx - len(test_idx), len(test_idx)))
     print('Complete')
+
 
 if __name__ == '__main__':
     is_signal = sys.argv[1]

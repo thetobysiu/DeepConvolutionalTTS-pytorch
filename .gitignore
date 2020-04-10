@@ -2,3 +2,6 @@
 __pycache__/
 logs
 runs
+voice
+samples*
+.idea
